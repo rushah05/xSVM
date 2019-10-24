@@ -13,7 +13,7 @@ k - kernel rank
 C - regularization parameter   
 g - gamma  
 q - no of iterations to orthogonalize the approximated kernel matrix (for better accuracy)  
-mdfile - model.csv file created after training
+mdfile - model.csv file created after training  
 dspath - data set file path
 
 ## How to train
