@@ -4,7 +4,7 @@ TF=Float64
 function readfile(path, n, d)
     #TODO: deduce n & d from the file!
 
-    X = fill(TF(0.0), (d, n))
+    X = fill(TF(0.0), (n, d))
     Y = fill(Int32(0.0), n)
 
     linenum = 1;
