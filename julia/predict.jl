@@ -19,7 +19,7 @@ function readfile(path, n, d)
                 s = split(f,":")
                 k = parse(Int,s[1])
                 v = parse(TF, s[2])
-                X[k, linenum] = v
+                X[linenum, k] = v
             end
             linenum+=1
         end
