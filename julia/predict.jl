@@ -4,7 +4,7 @@ TF=Float64
 function readfile(path, n, d)
     #TODO: deduce n & d from the file!
 
-    X = fill(TF(0.0), (n, d))
+    X = fill(TF(0.0), (d, n))
     Y = fill(Int32(0.0), n)
 
     linenum = 1;
@@ -19,7 +19,7 @@ function readfile(path, n, d)
                 s = split(f,":")
                 k = parse(Int,s[1])
                 v = parse(TF, s[2])
-                X[linenum, k] = v
+                X[k, linenum] = v
             end
             linenum+=1
         end
