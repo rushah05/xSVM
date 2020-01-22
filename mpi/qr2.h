@@ -8,12 +8,14 @@
 // Algorithm: comm-avoiding Q
 void stack(float *R1, float *R2, float *RR, int k);
 void unstack(float *R1, float *R2, float *RR, int k);
-void qr(int n, int k, float *A, int ldA, float *R)
+void qr(long long int n, int k, float *A, int ldA, float *R)
 {
     int rank, np;
     MPI_Comm_size(MPI_COMM_WORLD, &np);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    int ln = (rank+1)*n/np - (rank)*n/np; // local n
+    long long int cbegin = (rank)*n/np;
+    long long int cend = (rank+1)*n/np;
+    int ln = cend - cbegin; // local n
     if (ln <= k) printf("ERROR: ln %d must be larger than k %d; reduce np.\n", ln, k);
     
     float *tau = (float*)malloc(sizeof(float)*k);
