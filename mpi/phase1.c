@@ -50,56 +50,6 @@ void kernel_rbf(int rank, int m, int n, int d, float *Xbuf, int ldXbuf, float *X
 // // Y is n (replicated) array
 // // A is n * k (distributed) array
 // // A is overwritten by K*A
-/*void kernel_matmul2(long long int n, int d, int k, float *X, int ldX, float *Y, double gamma, float *A, int ldA)
-{
-    int rank, np;
-    MPI_Comm_size(MPI_COMM_WORLD, &np);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    
-    long long int b, e;
-    int s;
-    b = rank*n/np;
-    e = (rank+1)*n/np;
-    s = e - b;
-    
-    int i;
-    float *Xbuf = (float*) malloc(sizeof(float)* d*(s+1) );
-    float *Ybuf = (float*) malloc(sizeof(float)* (s+1) );
-    float *W = (float*) malloc(sizeof(float)* (s+1) * (s+1) );
-    float *KA = (float*) malloc(sizeof(float)* (s+1)*k);
-    float *KAI = (float*) malloc(sizeof(float)* (s+1)*k);
-    long long int ib, ie;
-    int is;
-    for (i=0; i<np; i++) {
-        ib = n*i/np;
-        ie = n*(i+1)/np;
-        is = ie - ib;
-        
-        if (rank==i) {
-            LAPACKE_slacpy(LAPACK_COL_MAJOR, 'P', d, is, X, ldX, Xbuf, d);
-            cblas_scopy(is, Y, 1, Ybuf, 1);
-        }
-        MPI_Bcast(Xbuf, d*is, MPI_FLOAT, i, MPI_COMM_WORLD);
-        MPI_Bcast(Ybuf, is, MPI_FLOAT,i, MPI_COMM_WORLD);
-        kernel_rbf(rank, is, s, d, Xbuf, d, X, ldX, Ybuf, Y, gamma, W, is);
-        cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, is, k, s, 1.0, W, is, A, ldA, 0.0, KA, is);
-        MPI_Reduce(KA, KAI, (is*k), MPI_FLOAT, MPI_SUM, i, MPI_COMM_WORLD);
-        
-    }
-    LAPACKE_slacpy(LAPACK_COL_MAJOR, 'P', s, k, KAI, s, A, ldA);
-    
-    free(Xbuf);
-    free(Ybuf);
-    free(W);
-    free(KA);
-    free(KAI);
-}
-*/
-
-// X is d * n (distributed) array
-// // Y is n (replicated) array
-// // A is n * k (distributed) array
-// // A is overwritten by K*A
 void kernel_matmul(int np, int rank, long long int n, int d, int k, float *X, int ldX, float *Y, double gamma, float *A, int ldA)
 {
     long long int cbegin = ((n * rank)/np);
@@ -995,8 +945,10 @@ int main(int argv, char *argc[])
     int i;
     float *X = (float*)malloc(sizeof(float) * d * ln);
     float *YY = (float*)malloc(sizeof(float) * ln);
+    /* Read and distribute X and Y from file */
     start = MPI_Wtime();
     readtrainingfile(rank, np, filename, X, d, YY, d, gn);
+    //read_and_dist(rank, np, "X.csv", X, d, YY, d, gn);
     end = MPI_Wtime();
     printf("rank %d :: main :: Time taken to read and distribute X and Y from a file is %f seconds\n", rank, end - start);
     float *A = (float*) malloc(sizeof(float) * ln * k);
@@ -1004,11 +956,14 @@ int main(int argv, char *argc[])
     float *Q = (float*) malloc( sizeof(float) * ln * k);
     for (i = 0; i < ln*k; i++)
         A[i] = gaussrand();
+    /* A = KA (A is a randomly generated)*/
     char Aname[10], Qname[10];
     start = MPI_Wtime();
     kernel_matmul(np, rank, gn, d, k, X, d, YY, gamma, A, ln); 
+   // kernel_matmul2( gn, d, k, X, d, YY, gamma, A, ln);
     end = MPI_Wtime();
     printf("rank %d :: main :: Time taken to perform kernel matmul A=K*A is %f seconds\n", rank, end - start);
+    /* A = AR */
     memcpy(Q, A, sizeof(float)*ln*k);
     start = MPI_Wtime();
     qr(gn, k, A, ln, R);
@@ -1020,6 +975,7 @@ int main(int argv, char *argc[])
     printf("rank %d :: main :: Time taken to perform qr A=A*R is %f seconds\n", rank, end - start);
     memcpy(Q, A, sizeof(float)* ln * k);
     float *CC = (float*) malloc( sizeof(float) * k * k );
+    /* Q = KQ */
     if(q > 0)
     {
 		start = MPI_Wtime();
@@ -1031,12 +987,14 @@ int main(int argv, char *argc[])
     	end = MPI_Wtime();
     	printf("rank %d :: main :: Time taken to perform Q=K*Q for %d iterations is %f seconds\n", rank,q, end - start);
     }
+    /* C = Q'KQ = A'* Q , where Q=KQ*/
     start = MPI_Wtime();
     memcpy(A, Q, sizeof(float)* ln * k);
     kernel_matmul(np, rank, gn, d, k, X, d, YY, gamma, A, ln);
     inner_product(rank, ln, k, Q, ln, A, ln, CC, k);
     end = MPI_Wtime();
     printf("rank %d :: main :: Time taken to perform the inner product C=Q'*K*Q is  %f seconds\n", rank, end - start);
+    /* ||K - QCQ'|| */
     float fn = 0.0;
     start = MPI_Wtime();
     float *QC = (float*) malloc(sizeof(float) * ln * k);
