@@ -3,7 +3,9 @@ xSVM is a fast and scalable SVM classifier.
 
 # Publications
 BigData'19	xSVM: Scalable Distributed Kernel Support Vector Machine Training. 
+
 IEEE International Conference on Big Data in 2019. 
+
 Los Angeles, CA, USA, Dec 9 - 12, 2019. Acceptance Rate: 19.3% (106/550). 
 
 ## Required modules
