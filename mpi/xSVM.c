@@ -16,8 +16,7 @@ void kernel_rbf(int rank, int m, int n, int d, float *Xbuf, int ldXbuf, float *X
 {
     int i,j,l;
     float *temp = (float*) malloc(sizeof(float) * (m+1) * (n+1));
-    cblas_sgemm (CblasColMajor, CblasTrans, CblasNoTrans, m, n, d, 2.0, Xbuf, ldXbuf, X, ldX, 0.0, temp, m);
-    //printf("rank %d:: temp %f, temp %f, temp %f\n", rank, temp[0], temp[1], temp[(m-1) + m * (n-1)]);
+    cblas_sgemm(CblasColMajor, CblasTrans, CblasNoTrans, m, n, d, 2.0, Xbuf, ldXbuf, X, ldX, 0.0, temp, m);
     float *XISQR = (float*) malloc(sizeof(float) * m );
     float *XJSQR = (float*) malloc(sizeof(float) * n );
     for (i = 0; i < m; i++ ) {
@@ -47,17 +46,18 @@ void kernel_rbf(int rank, int m, int n, int d, float *Xbuf, int ldXbuf, float *X
     
 }
 
+
 // X is d * n (distributed) array
 // // Y is n (replicated) array
 // // A is n * k (distributed) array
 // // A is overwritten by K*A
-void kernel_matmul2(long long int n, int d, int k, float *X, int ldX, float *Y, double gamma, float *A, int ldA)
+void kernel_matmul2( long long int n, int d, int k, float *X, int ldX, float *Y, double gamma, float *A, int ldA)
 {
     int rank, np;
     MPI_Comm_size(MPI_COMM_WORLD, &np);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     
-    long long int b, e;
+    long long int b, e; 
     int s;
     b = rank*n/np;
     e = (rank+1)*n/np;
@@ -71,12 +71,14 @@ void kernel_matmul2(long long int n, int d, int k, float *X, int ldX, float *Y, 
     float *KAI = (float*) malloc(sizeof(float)* (s+1)*k);
     long long int ib, ie;
     int is;
-    for (i=0; i<np; i++) {
+    for (i=0; i<np; i++) 
+    {
         ib = n*i/np;
         ie = n*(i+1)/np;
         is = ie - ib;
         
-        if (rank==i) {
+        if (rank==i) 
+	{
             LAPACKE_slacpy(LAPACK_COL_MAJOR, 'P', d, is, X, ldX, Xbuf, d);
             cblas_scopy(is, Y, 1, Ybuf, 1);
         }
@@ -95,6 +97,7 @@ void kernel_matmul2(long long int n, int d, int k, float *X, int ldX, float *Y, 
     free(KA);
     free(KAI);
 }
+
 
 // X is d * n (distributed) array
 // // Y is n (replicated) array
@@ -120,7 +123,7 @@ void kernel_matmul(int np, int rank, long long int n, int d, int k, float *X, in
         if(rank == i)
         {
             LAPACKE_slacpy(LAPACK_COL_MAJOR, 'P', d, rsize, X, d, Xbuf, d);
-            cblas_scopy (rsize, Y, 1, Ybuf, 1);
+            cblas_scopy(rsize, Y, 1, Ybuf, 1);
         }
         MPI_Bcast(Xbuf, (rsize * d), MPI_FLOAT, i, MPI_COMM_WORLD);
         MPI_Bcast(Ybuf, rsize, MPI_FLOAT, i, MPI_COMM_WORLD);
@@ -159,12 +162,12 @@ void kernel_matmul(int np, int rank, long long int n, int d, int k, float *X, in
 // A, B are n*k (distributed)
 // C = A' * B (replicated)
 // C is k*k
-void inner_product(int rank, int n, int k, float *A, int ldA, float *B, int ldB, float *C, int ldC)
+void inner_product(int rank, int ln, int k, float *A, int ldA, float *B, int ldB, float *C, int ldC)
 {
     double start, end;
     start = MPI_Wtime();
     float *Ci = (float*) malloc( sizeof(float) * k * k );
-    cblas_sgemm(CblasColMajor, CblasTrans, CblasNoTrans, k, k, n, 1.0, A, ldA, B, ldB, 0.0, Ci, ldC);
+    cblas_sgemm(CblasColMajor, CblasTrans, CblasNoTrans, k, k, ln, 1.0, A, ldA, B, ldB, 0.0, Ci, ldC);
     MPI_Reduce(Ci, C, (k * k), MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Bcast(C, (k * k), MPI_FLOAT, 0, MPI_COMM_WORLD);
     free(Ci);
@@ -191,8 +194,8 @@ float fnorm(int np, int rank, long long int n, int d, int k, float *A, int ldA, 
     
     for(i = 0; i < np; ++i)
     {
-        long int rbegin = ((n * i)/np);
-        long int rend = (n * (i + 1)/np);
+        long long int rbegin = ((n * i)/np);
+        long long int rend = (n * (i + 1)/np);
         int rsize = rend - rbegin;
         float *Xbuf = (float*) malloc (sizeof(float) * rsize * d);
         float *Ybuf = (float*) malloc (sizeof(float) * rsize);
@@ -217,13 +220,6 @@ float fnorm(int np, int rank, long long int n, int d, int k, float *A, int ldA, 
             LAPACKE_slacpy(LAPACK_COL_MAJOR, 'P', rsize, k, A, ldA, Abuf, rsize);
         }
         MPI_Bcast(Abuf, rsize*k, MPI_FLOAT, i, MPI_COMM_WORLD);
-        /*Testing purposes only*/
-        /* if(rank == 0 & i == 0)
-         {
-         mat2csv(rsize, csize, W, rsize, "K0.csv");
-         mat2csv(rsize, k, Abuf, rsize, "Abuf0.csv");
-         mat2csv(csize, k, B, csize, "B0.csv");
-         }*/
         cblas_sgemm(CblasColMajor, CblasNoTrans, CblasTrans, rsize, csize, k, 1.0, Abuf, rsize, B, ldB, -1.0, W, rsize);
         for(j=0; j<rsize; ++j)
         {
@@ -233,7 +229,6 @@ float fnorm(int np, int rank, long long int n, int d, int k, float *A, int ldA, 
                 fnorm_i = fnorm_i + result;
             }
         }
-        /* printf("rank %d:: READ ME :: fnorm_i %f\n",rank, fnorm_i); */
         free(W);
         free(Xbuf);
         free(Ybuf);
@@ -244,110 +239,6 @@ float fnorm(int np, int rank, long long int n, int d, int k, float *A, int ldA, 
     if (rank==0) *normK = sqrt(*normK);
     return sqrt(fnorm);
 }
-
-// read CSV X, Y
-// X is (distributed) d * n
-// Y is (replicated?) n
-/*void read_and_dist(int rank, int np, char *filename, float *X, int ldX, float *Y, int d, int n)
-{
-    int i,j = 0, rk = 0, lbegin = 0, lend = 0, ln = 0;
-    char *line = NULL;
-    size_t len = 0;
-    ssize_t read;
-    //Read X.csv
-    if(rank == 0)
-    {
-        float *Xbuf;
-        FILE *f = fopen(filename, "r");
-        if(!f)
-            exit(EXIT_FAILURE);
-        
-        while((read = getline (&line, &len, f)) != -1)
-        {
-            if(lbegin == lend)
-            {
-                j = 0;
-                lbegin = (n * rk)/np;
-                lend = (n * (rk + 1))/np;
-                ln = lend - lbegin;
-                Xbuf = (float*)malloc(sizeof(float) * d * ln);
-            }
-            i = 0;
-            char *fset = strtok (line,",");
-            while (fset != NULL)
-            {
-                Xbuf[i + j * ldX] =  strtod(fset,NULL);
-                ++i;
-                fset = strtok (NULL, ",");
-            }
-            ++j;
-            ++lbegin;
-            
-            if(lbegin == lend)
-            {
-                if(rk == 0)
-                    LAPACKE_slacpy(LAPACK_COL_MAJOR,'P', d, ln, Xbuf, ldX, X, ldX);
-                else
-                    MPI_Send(Xbuf, (d * ln), MPI_FLOAT, rk, 0, MPI_COMM_WORLD);
-                free(Xbuf);
-                ++rk;
-            }
-        }
-        fclose(f);
-    }
-    else
-    {
-        lbegin = (n * rank)/np;
-        lend = (n * (rank + 1))/np;
-        ln = lend - lbegin;
-        MPI_Recv(X, (d * ln), MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    }
-    
-    rk = 0, lbegin = 0, lend = 0, ln = 0;
-    float *Ybuf;
-    if(rank == 0)
-    {
-        FILE *f1 = fopen("Y.csv", "r");
-        if(!f1)
-            exit(EXIT_FAILURE);
-        i = 0;
-        line = NULL;
-        len = 0;
-        read = 0;
-        while((read = getline(&line, &len, f1)) != -1)
-        {
-            if(lbegin == lend)
-            {
-                i=0;
-                lbegin = (n * rk)/np;
-                lend = (n * (rk + 1))/np;
-                ln = lend - lbegin;
-                Ybuf = (float*)malloc(sizeof(float) * ln);
-            }
-            Ybuf[i] =  strtod(line, NULL);
-            ++i;
-            ++lbegin;
-            if(lbegin == lend)
-            {
-                if(rk == 0)
-                    cblas_scopy(ln, Ybuf, 1, Y, 1);
-                else
-                    MPI_Send(Ybuf, ln, MPI_FLOAT, rk, 1, MPI_COMM_WORLD);
-                free(Ybuf);
-                ++rk;
-            }
-        }
-        fclose(f1);
-    }
-    else
-    {
-        lbegin = (n * rank)/np;
-        lend = (n * (rank + 1))/np;
-        ln = lend - lbegin;
-        MPI_Recv(Y, ln, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    }
-}
-*/
 
 float gaussrand()
 {
@@ -389,9 +280,8 @@ void mat2csv(int n, int k, double *A, int ldA, char *filename)
     fclose(fp);
 }
 
-/*int readfileY(char* path,double* mat)
+int readfileY(char* path,double* mat)
 {
-    
     FILE *fp=fopen(path,"r");
     if(fp == NULL)
     {
@@ -399,60 +289,17 @@ void mat2csv(int n, int k, double *A, int ldA, char *filename)
     }
     char temp[1024];
     int j=0;
-    //printf("1\n");
     while(!feof(fp))
     {
-        
-        //printf("2\n");
         fgets(temp,1024,fp);
         temp[strlen(temp)-1]= '\0';
-        
         mat[j] = atof(temp);
         j++;
     }
-    
     return 1;
 }
 
-int readfileQ(char* path,double* mat)
-{
-    
-    FILE *fp=fopen(path,"r");
-    if(fp == NULL)
-    {
-        return 1;
-    }
-    char temp[10240];
-    int i,j;
-    i=0;j=0;
-    //printf("1\n");
-    while(!feof(fp))
-    {
-        i=0;
-        //printf("2\n");
-        fgets(temp,10240,fp);
-        temp[strlen(temp)-1]= '\0';
-        char *s;
-        s=strtok(temp,",");
-        
-        mat[i+j*100] = atof(s);
-        while(i<=100)
-        {
-            i++;
-            //printf("s is %s %d\n",s,s[0]);
-            s = strtok(NULL,",");
-            if(s==NULL)
-                break;
-            mat[i+j*100]=atof(s);
-            //printf("3\n");
-        }
-        
-        j++;
-    }
-    
-    return 1;
-}
-*/
+
 
 void writeModel(int k, double *A, char *filename,double b,double gamma,double *a,double *Y,int *AS,int iAS)
 {
@@ -532,9 +379,7 @@ double vecvec_dot_mpi(double *a,double *b,int n)
 {
     double c = cblas_ddot(n,a,1,b,1);
     double gc = 0;
-    //printf("c=%lf\n",c);
     MPI_Allreduce(&c, &gc, 1, MPI_DOUBLE, MPI_SUM,MPI_COMM_WORLD);
-    //printf("gc=%lf\n",gc);
     return gc;
 }
 
@@ -704,12 +549,10 @@ void MPC(double *Z,double *a,double C,double gamma, int b, int n,int d,double* X
     int gn = 0;
     MPI_Allreduce(&n, &gn, 1, MPI_INT, MPI_SUM,MPI_COMM_WORLD);
     printf("MPC:R[%d]:gn=%d n=%d d=%d\n",rank,gn,n,d);
-    //double X[n];
     fill(X,C/10.0,n);
     double y = 0.0;
     double S[n];
     fill(S,1.0,n);
-    //double Xi[n];
     fill(Xi,1.0,n);
     double e[n];
     fill(e,1.0,n);
@@ -722,7 +565,6 @@ void MPC(double *Z,double *a,double C,double gamma, int b, int n,int d,double* X
     qq=vecvec_dot_mpi(q,q,n);
     qe=vecvec_dot_mpi(q,e,n);
     double ox=qe/qq;
-    //printf("qe/qq=%lf\n",ox);
     if(ox<0.99*C&&ox>0.01*C)
     {
         if(rank==0)
@@ -871,7 +713,6 @@ void MPC(double *Z,double *a,double C,double gamma, int b, int n,int d,double* X
             for(int i=0;i<d*d;i=i+d+1)
             {
                 N[i]=N[i]+1.0;
-                //N=Factorize(N)
             }
             LAPACKE_dpotrf(LAPACK_ROW_MAJOR,'U',d,N,d);
         }
@@ -985,13 +826,6 @@ void MPC(double *Z,double *a,double C,double gamma, int b, int n,int d,double* X
             Xi[i]+=(alpha*dxi[i]);
         }
         ++iter;
-        /*
-         if(rank == 0){
-         for(int i=0;i<5;i++)
-         {
-         printf("X=%lf,S=%lf,Xi=%lf\n",X[i],S[i],Xi[i]);
-         }
-         }*/
     }
 }
 
@@ -1031,9 +865,7 @@ double g(double *X,double *Y,int n,int d,int ind,double *a,int *AS,int iAS,doubl
         for(int k=0;k<d;k++)
         {
             xn[k]=X[k+j*d]-X[k+ind*d];
-            //printf("%lf ",xn[k]);
         }
-        //printf("\n");
         R+=Y[j]*a[j]*exp((-gamma)*normsquare(xn,1,d));
     }
     return R;
@@ -1051,11 +883,9 @@ int readfileX(char* path,double* mat,int d)
     char temp[10240];
     int i,j;
     i=0;j=0;
-    //printf("1\n");
     while(!feof(fp))
     {
         i=0;
-        //printf("2\n");
         fgets(temp,10240,fp);
         temp[strlen(temp)-1]= '\0';
         char *s;
@@ -1065,12 +895,10 @@ int readfileX(char* path,double* mat,int d)
         while(i<=d)
         {
             i++;
-            //printf("s is %s %d\n",s,s[0]);
             s = strtok(NULL,",");
             if(s==NULL)
                 break;
             mat[i+j*d]=atof(s);
-            //printf("3\n");
         }
         
         j++;
@@ -1125,7 +953,7 @@ int main(int argv, char *argc[])
     if((np == 0) || ((np & (np - 1)) != 0))
     {
         if(rank == 0)
-            printf("ERROR : no of processors should be in the power of 2, np : %d\n",np);
+            printf("ERROR : no of processors should be in the power of 2\n");
         return 0;
     }
     char *filename = argc[1];
@@ -1162,7 +990,8 @@ int main(int argv, char *argc[])
     /* A = KA (A is a randomly generated)*/
     char Aname[10], Qname[10];
     start = MPI_Wtime();
-    kernel_matmul(np, rank, gn, d, k, X, d, YY, gamma, A, ln); 
+    /* kernel_matmul(np, rank, gn, d, k, X, d, Y, gamma, A, ln); */
+    kernel_matmul2( gn, d, k, X, d, YY, gamma, A, ln);
     end = MPI_Wtime();
     printf("rank %d :: main :: Time taken to perform kernel matmul A=K*A is %f seconds\n", rank, end - start);
     /* A = AR */
@@ -1206,6 +1035,10 @@ int main(int argv, char *argc[])
     end = MPI_Wtime();
     if (rank==0) printf("rank %d :: main :: fnorm is %.16f\n, original norm=%.16f, ratio=%e\n", rank, fn, normK, fn/normK);
     start = MPI_Wtime();
+    
+    if(isnan(fn) || isnan(normK))
+    	return 0;
+
     int myid = rank;
     int procnum = np;
     
@@ -1213,34 +1046,24 @@ int main(int argv, char *argc[])
     int constd = d;
     int constn = n;
     int constk = k;
-    //float *gC = (float*)malloc(sizeof(float)*k*k);
-    double *gC = (double*)malloc(sizeof(double)*k*k);
-    convertfloat2double(k, k, CC, k, gC, k);
-    //gC=CC;
     n = ln;
     d = k;
-    
+
+    double *gC = (double*)malloc(sizeof(double) * d * d);
+    convertfloat2double(d, d, CC, d, gC, d);
     double *gQ = (double*) malloc( sizeof(double) * n * d);
     convertfloat2double(d, n, Q, n, gQ, n); 
     transposeQ(gQ,n,d);
-    if(rank==0)
-    {
-        printf("Q=%.16lf %.16lf %.16lf %.16lf",Q[0],Q[1],Q[2],Q[3]);
-    }
     transpose(gC,d,d);
-
     MPI_Allreduce(&n, &gn, 1, MPI_INT, MPI_SUM,MPI_COMM_WORLD);
-    printf("File reading done. size(Q)=%d,%d,size(C)=%d,%d\n",n,k,k,k);
-    printf("gn=%d,d=%d\n",gn,d);
-    
-    double *gY = (double*)malloc(sizeof(double)*gn);
-    //readfileY("Y.csv",gY);
-    convertfloat2double(1, n, YY, n, gY, n);
+    double *gX=(double*)malloc(sizeof(double)* gn * constd); 
+    double *gY = (double*)malloc(sizeof(double)* gn);
+    readfileY("Y.csv", gY);
+    readfileX("X.csv", gX, constd);
     
     int rowb = (int)floor((double)myid*(double)gn/(double)procnum)+1;
     int rowe = (int)floor((double)(myid+1)*(double)gn/(double)procnum);
     n= rowe-rowb+1;
-    printf("R[%d] Q size %d,%d\n",myid,n,d);
     double gCTrans[d*d];
     matTrans(gC,d,d,gCTrans);
     matAdd(gC,gCTrans,d,d);
@@ -1251,7 +1074,7 @@ int main(int argv, char *argc[])
     
     double Qtmp[n*d];
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,n,d,d,1.0,gQ,d,gC,d,0,Qtmp,d);
-    LAPACKE_dlacpy(LAPACK_ROW_MAJOR, 'A', n, d, Qtmp, d, gQ, d);
+    LAPACKE_dlacpy(LAPACK_ROW_MAJOR,'A',n,d,Qtmp,d,gQ,d);
     double Y[rowe-rowb+1];
     LAPACKE_dlacpy(LAPACK_ROW_MAJOR, 'A', rowe-rowb+1, 1, gY+rowb-1, 1, Y, 1);
     double a[n],xi[n];
@@ -1300,11 +1123,6 @@ int main(int argv, char *argc[])
     if(myid==0)
     {
         printf("\n%lf %lf %d %d %d\nGenerating model file...\nReading the original data file...\n",gamma,C,k,n,d);
-        
-        double *gX=(double*)malloc(sizeof(double)*gn*constd);
-        //double Y[atoi(argv[4])];
-        readfileX("X.csv",gX,constd);
-        
         int S[gn],AS[gn];
         int iS,iAS;
         iS=0;
@@ -1358,13 +1176,13 @@ int main(int argv, char *argc[])
 		acc += (bs2[i]-b)*(bs2[i]-b);
 	    acc = sqrt(acc) / MIN(iAS,100);
 	    printf("Average(bs)=%e, stddev(bs)=%e, sample=%d\n",b,acc, MIN(iAS,100) );
-            printf("Intercept b=%e\n",b);
+	    printf("Intercept b=%e\n",b);
 	    printf("Now writing solution to model.csv...\n");
 	    writeModel(constd, gX, "model.csv",b,gamma,ga,gY,AS,iAS);
         }
 	else
 	{
-	     printf("No support vectors! No model generated.\n");
+	    printf("No support vectors! No model generated.\n");
 	}    
     }
     end = MPI_Wtime();
