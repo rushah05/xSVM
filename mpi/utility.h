@@ -24,26 +24,26 @@ void readtrainingfile(int rank, int np, char *filename, float *X, int ldX, float
                 int i = 0;
 		float *Xbuf;
 		float *Ybuf;
-    	for(int iter = 0; iter < n; ++iter)
+    	for(long long int iter = 0; iter < n; ++iter)
 		{
 			if((read = getline(&line, &len, f)) != -1)	
 			{
 				if(lend == lbegin)
-                        	{
-                                	lbegin = (n * rk)/np;
-                                	lend = (n * (rk + 1))/np;
-                                	ln = lend -lbegin;
-                                	Xbuf = (float*)malloc(sizeof(float) * d * ln);
+                {
+                	lbegin = (n * rk)/np;
+                    lend = (n * (rk + 1))/np;
+                    ln = lend -lbegin;
+                    Xbuf = (float*)malloc(sizeof(float) * d * ln);
 					Ybuf = (float*)malloc(sizeof(float) * ln);
 					i = 0;
-                        	}
+                }
 
 				char *label = strtok (line," ");
 				char *featureset = strtok (NULL," ");
-                       	 	Ybuf[i] = atof(featureset);
+                Ybuf[i] = atof(featureset);
 				while (featureset != NULL)
-        			{
-            				int counter = strlen(featureset);
+        		{
+            		int counter = strlen(featureset);
 					int foundcolon = 0;
 					char *tempidx = (char*)malloc(sizeof(char));
 					char *tempval = (char*)malloc(sizeof(char));
@@ -76,28 +76,26 @@ void readtrainingfile(int rank, int np, char *filename, float *X, int ldX, float
 					int index = atoi(tempidx);
 					float val = atof(tempval);
 					Xbuf[index + (i*d)] = val;
-					//printf("%f\t",val);
 					featureset = strtok (NULL, " ");
-        			}
-				++i;
-				//printf("\n");
-				++lbegin;
-				if(lbegin == lend)
-                        	{
-                                	if(rk == 0)
-                                	{
-                                      		LAPACKE_slacpy(LAPACK_COL_MAJOR,'P', d, ln, Xbuf, d, X, ldX);
-                                      		cblas_scopy(ln, Ybuf, 1, Y, 1);
-                                	}
-                                	else
-                                	{
-                                     		MPI_Send(Xbuf, (d * ln), MPI_FLOAT, rk, 0, MPI_COMM_WORLD);
-                                      		MPI_Send(Ybuf, ln, MPI_FLOAT, rk, 1, MPI_COMM_WORLD);
-                                	}
-                                	free(Xbuf);
+        		}
+		++i;
+		++lbegin;
+		if(lbegin == lend)
+                {
+                	if(rk == 0)
+                    {
+                    	LAPACKE_slacpy(LAPACK_COL_MAJOR,'P', d, ln, Xbuf, d, X, ldX);
+                        cblas_scopy(ln, Ybuf, 1, Y, 1);
+                    }
+                    else
+                    {
+                    	MPI_Send(Xbuf, (d * ln), MPI_FLOAT, rk, 0, MPI_COMM_WORLD);
+                        MPI_Send(Ybuf, ln, MPI_FLOAT, rk, 1, MPI_COMM_WORLD);
+                    }
+                    free(Xbuf);
 					free(Ybuf);
-                                	++rk;
-                        	}
+                    ++rk;
+                }
 			}
 		}
                 fclose(f);
@@ -115,20 +113,20 @@ void readtrainingfile(int rank, int np, char *filename, float *X, int ldX, float
 
 void readfile(int np, char *filename, double *X, int ldX, double *Y, int d, long long int n)
 {
-	int rk = 0 , ln = 0;
-	long long int lbegin = 0, lend = 0;
+		int rk = 0 , ln = 0;
+		long long int lbegin = 0, lend = 0;
         FILE *f = fopen(filename, "r");
-                if(!f)
-              	{
+        if(!f)
+        {
 		    exit(EXIT_FAILURE);
 		}
 		
 		char *line;
-    		ssize_t read;
-    		size_t len = 0;
-    		int row = 0;
-                long long int i = 0;
-    		for(int iter = 0; iter < n; ++iter)
+    	ssize_t read;
+    	size_t len = 0;
+    	int row = 0;
+        long long int i = 0;
+    	for(int iter = 0; iter < n; ++iter)
 		{
 			if((read = getline(&line, &len, f)) != -1)	
 			{
@@ -136,8 +134,8 @@ void readfile(int np, char *filename, double *X, int ldX, double *Y, int d, long
 				char *featureset = strtok (NULL," ");
                        	 	Y[i] = atof(featureset);
 				while (featureset != NULL)
-        			{
-            				int counter = strlen(featureset);
+        		{
+            		int counter = strlen(featureset);
 					int foundcolon = 0;
 					char *tempidx = (char*)malloc(sizeof(char));
 					char *tempval = (char*)malloc(sizeof(char));
@@ -176,7 +174,7 @@ void readfile(int np, char *filename, double *X, int ldX, double *Y, int d, long
 				++i;
 			}
 		}
-                fclose(f);
+        fclose(f);
 }
 
 void convertfloat2double(int n, int d, float *F, int ldF, double *D, int ldD)
