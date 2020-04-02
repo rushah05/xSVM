@@ -1,5 +1,6 @@
 # xSVM
 xSVM is a fast and scalable SVM classifier. 
+Please refer the below link to access the full paper - https://ieeexplore.ieee.org/document/9006315
 
 ## Required modules
 - gcc 7.1.0  
